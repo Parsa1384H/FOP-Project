@@ -165,6 +165,7 @@ int add_file(int argc, char *adress)
     char filename[100];
     char *lastBackslash = strrchr(adress, '/');
     strcpy(filename, lastBackslash + 1);
+    chdir("/mnt/c/FOP_Project");
     DIR *dir = opendir(".neogit");
     if (dir == NULL)
     {
@@ -501,9 +502,10 @@ int reset_dir(int argc, char *addres)
         char fullpath[100];
         snprintf(fullpath, sizeof(fullpath), "%s/%s", dirname, entry->d_name);
 
-        if (remove(fullpath) != 0) {
+        if (remove(fullpath) != 0)
+        {
             printf("%s : Could not delete file or directory!\n", fullpath);
-        }     
+        }
     }
 
     if (rmdir(dirname) == 0)
@@ -597,7 +599,30 @@ int main(int argc, char const *argv[])
         {
             for (int i = 2; i < argc; i++)
             {
-                // TODO
+                FILE *file = fopen(argv[i], "r");
+                DIR *dir = opendir(argv[i]);
+
+                if (file == NULL && dir == NULL)
+                {
+                    char filename[100];
+                    char *lastBackslash = strrchr(argv[i], '/');
+                    strcpy(filename, lastBackslash + 1);
+                    printf("%s : File or directory doesn't exists!\n", filename);
+                }
+                if (dir != NULL)
+                {
+                    char folderadress[100];
+                    strcpy(folderadress, argv[i]);
+                    add_dir(argc, folderadress);
+                    // continue;
+                }
+                if (file != NULL)
+                {
+                    char fileadress[100];
+                    strcpy(fileadress, argv[i]);
+                    add_file(argc, fileadress);
+                    // continue;
+                }
             }
         }
     }
@@ -633,12 +658,40 @@ int main(int argc, char const *argv[])
                 }
             }
         }
-        // else if (strcmp(argv[2], "-undo") == 0)
-        // {
-        // }
-        // else
-        // {
-        // }
+        else if (strcmp(argv[2], "-undo") == 0)
+        {
+            
+        }
+        else
+        {
+            for (int i = 2; i < argc; i++)
+            {
+                FILE *file = fopen(argv[i], "r");
+                DIR *dir = opendir(argv[i]);
+
+                if (file == NULL && dir == NULL)
+                {
+                    char filename[100];
+                    char *lastBackslash = strrchr(argv[i], '/');
+                    strcpy(filename, lastBackslash + 1);
+                    printf("%s : File or directory doesn't exists!\n", filename);
+                }
+                if (dir != NULL)
+                {
+                    char folderadress[100];
+                    strcpy(folderadress, argv[i]);
+                    reset_dir(argc, folderadress);
+                    // continue;
+                }
+                if (file != NULL)
+                {
+                    char fileadress[100];
+                    strcpy(fileadress, argv[i]);
+                    reset_file(argc, fileadress);
+                    // continue;
+                }
+            }
+        }
     }
     else
     {
