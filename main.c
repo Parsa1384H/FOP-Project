@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 
 char global_username[100];
 char global_email[100];
@@ -22,6 +23,7 @@ int create_config_globalemail(int argc, char const *argv[]);
 int add_n(int argc, char const *argv[]);
 int reset_file(int argc, char *addres);
 int reset_dir(int argc, char *addres);
+int reset_undo(int argc, char const *argv[]);
 
 int initialize(int argc, char const *argv[])
 {
@@ -172,6 +174,16 @@ int add_file(int argc, char *adress)
         printf("You have to initialize a repository first!\n");
         return 1;
     }
+    else
+    {
+        FILE *found = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "r");
+        if (found == NULL)
+        {
+            FILE *create = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "a");
+            fclose(create);
+        }
+        fclose(found);
+    }
     chdir(".neogit");
     DIR *openFolder = opendir("staging");
     if (openFolder == NULL)
@@ -197,6 +209,9 @@ int add_file(int argc, char *adress)
             else
             {
                 printf("%s : File added!\n", filename);
+                FILE *write = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "a");
+                fprintf(write, "\n%s", filename);
+                fclose(write);
             }
             char ch;
             FILE *source = fopen(adress, "r");
@@ -242,6 +257,9 @@ int add_file(int argc, char *adress)
             else
             {
                 printf("%s : File Updated!\n", filename);
+                FILE *write = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "a");
+                fprintf(write, "\n%s", filename);
+                fclose(write);
             }
             fclose(diff);
             fclose(dest);
@@ -269,6 +287,16 @@ int add_dir(int argc, char *adress)
         printf("You have to initialize a repository first!\n");
         return 1;
     }
+    else
+    {
+        FILE *found = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "r");
+        if (found == NULL)
+        {
+            FILE *create = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "a");
+            fclose(create);
+        }
+        fclose(found);
+    }
     closedir(dir);
     char direname[100];
     char *lastBackslash = strrchr(adress, '/');
@@ -290,11 +318,10 @@ int add_dir(int argc, char *adress)
     else
     {
         printf("%s : Directrory is already added!\n", direname);
-        return 1; // delete if needed
+        return 1;
     }
     struct dirent *entry;
     DIR *dir_1 = opendir(adress);
-    // chdir("/mnt/c/FOP_Project");
     while ((entry = readdir(dir_1)) != NULL)
     {
         if ((strcmp(entry->d_name, ".") == 0) || (strcmp(entry->d_name, "..") == 0))
@@ -326,6 +353,10 @@ int add_dir(int argc, char *adress)
         }
     }
     printf("Directory added!\n");
+    FILE *write = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "a");
+    fprintf(write, "\n%s", direname);
+    fclose(write);
+
     return 0;
 }
 int add_n(int argc, char const *argv[])
@@ -499,7 +530,7 @@ int reset_dir(int argc, char *addres)
         {
             continue;
         }
-        char fullpath[100];
+        char fullpath[256];
         snprintf(fullpath, sizeof(fullpath), "%s/%s", dirname, entry->d_name);
 
         if (remove(fullpath) != 0)
@@ -519,6 +550,94 @@ int reset_dir(int argc, char *addres)
     }
     closedir(open);
 
+    return 0;
+}
+int reset_undo(int argc, char const *argv[])
+{
+    FILE *foundL = fopen("/mnt/c/FOP_Project/.neogit/config", "r");
+    FILE *foundG = fopen("/home/parsa/globalconfig", "r");
+    if (foundL == NULL && foundG == NULL)
+    {
+        printf("Please enter you're username and email first\n");
+        return 1;
+    }
+    if (foundL == NULL && foundG != NULL)
+        fclose(foundG);
+    if (foundL != NULL && foundG == NULL)
+        fclose(foundL);
+    DIR *dir = opendir("/mnt/c/FOP_Project/.neogit");
+    if (dir == NULL)
+    {
+        printf("You have to initialize a repository first!\n");
+        return 1;
+    }
+    closedir(dir);
+
+    FILE *open = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "r");
+    if (open == NULL)
+    {
+        printf("You have to add files or directories first!\n");
+        return 1;
+    }
+    fseek(open, 0, SEEK_END);
+
+    long pos = ftell(open);
+
+    while (pos > 0)
+    {
+        pos--;
+        fseek(open, pos, SEEK_SET);
+
+        char c = fgetc(open);
+        if (c == '\n')
+        {
+            break;
+        }
+    }
+
+    size_t bufsize = ftell(open);
+    char *lastLine = malloc(bufsize + 1);
+
+    if (fgets(lastLine, bufsize + 1, open) != NULL)
+    {
+        chdir("/mnt/c/FOP_Project/.neogit/staging");
+        if (remove(lastLine) == 0)
+        {
+            printf("%s : File was unstaged successfully!\n", lastLine);
+        }
+        else
+        {
+            struct dirent *entry;
+            DIR *open = opendir(lastLine);
+            chdir(lastLine);
+            while ((entry = readdir(open)) != NULL)
+            {
+                if ((strcmp(entry->d_name, ".") == 0) || (strcmp(entry->d_name, "..") == 0))
+                {
+                    continue;
+                }
+
+                if (remove(entry->d_name) != 0)
+                {
+                    printf("Error deleting!\n");
+                    return 1;
+                }
+            }
+            chdir("/mnt/c/FOP_Project/.neogit/staging");
+            if (rmdir(lastLine) == 0)
+            {
+                printf("%s : Directory was unstaged successfully!\n", lastLine);
+            }
+        }
+    }
+    else
+    {
+        printf("Error reading last line\n");
+        return 1;
+    }
+
+    free(lastLine);
+    fclose(open);
     return 0;
 }
 
@@ -614,14 +733,14 @@ int main(int argc, char const *argv[])
                     char folderadress[100];
                     strcpy(folderadress, argv[i]);
                     add_dir(argc, folderadress);
-                    // continue;
+                    continue;
                 }
                 if (file != NULL)
                 {
                     char fileadress[100];
                     strcpy(fileadress, argv[i]);
                     add_file(argc, fileadress);
-                    // continue;
+                    continue;
                 }
             }
         }
@@ -660,7 +779,7 @@ int main(int argc, char const *argv[])
         }
         else if (strcmp(argv[2], "-undo") == 0)
         {
-            
+            reset_undo(argc, argv);
         }
         else
         {
