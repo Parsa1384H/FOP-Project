@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -417,7 +418,7 @@ int add_n(int argc, char const *argv[])
             }
             closedir(open);
         }
-        if (entry->d_type == 8) // file
+        if (entry->d_type == 8) 
         {
             DIR *open1 = opendir("/mnt/c/FOP_Project/.neogit/staging");
             if (open1 == NULL)
@@ -755,8 +756,13 @@ int commit(int argc, char const *argv[])
             current_time->tm_mday, current_time->tm_mon + 1, current_time->tm_year + 1900,
             current_time->tm_hour, current_time->tm_min, current_time->tm_sec);
     fprintf(commit, "commit message : %s\n", argv[3]);
+    static uint64_t counter = 0;
 
+    // Combine time and counter to create a unique ID
+    uint64_t unique_id = ((uint64_t)current_time << 32) | (counter++);
+    fprintf(commit, "commit ID : %llu\n", unique_id);
     printf("Added files were successfully commited!\n");
+
 
     fclose(commit);
     fclose(config);
