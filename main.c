@@ -24,6 +24,7 @@ int add_n(int argc, char const *argv[]);
 int reset_file(int argc, char *addres);
 int reset_dir(int argc, char *addres);
 int reset_undo(int argc, char const *argv[]);
+int commit(int argc, char const *argv[]);
 
 int initialize(int argc, char const *argv[])
 {
@@ -180,9 +181,9 @@ int add_file(int argc, char *adress)
         if (found == NULL)
         {
             FILE *create = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "a");
-            fclose(create);
+            // fclose(create);
         }
-        fclose(found);
+        // fclose(found);
     }
     chdir(".neogit");
     DIR *openFolder = opendir("staging");
@@ -352,7 +353,7 @@ int add_dir(int argc, char *adress)
             fputc(ch, copy);
         }
     }
-    printf("Directory added!\n");
+    printf("%s : Directory added!\n",direname);
     FILE *write = fopen("/mnt/c/FOP_Project/.neogit/stage.txt", "a");
     fprintf(write, "\n%s", direname);
     fclose(write);
@@ -597,7 +598,6 @@ int reset_undo(int argc, char const *argv[])
 
     size_t bufsize = ftell(open);
     char *lastLine = malloc(bufsize + 1);
-
     if (fgets(lastLine, bufsize + 1, open) != NULL)
     {
         chdir("/mnt/c/FOP_Project/.neogit/staging");
@@ -607,6 +607,7 @@ int reset_undo(int argc, char const *argv[])
         }
         else
         {
+            printf("!\n");
             struct dirent *entry;
             DIR *open = opendir(lastLine);
             chdir(lastLine);
@@ -638,6 +639,127 @@ int reset_undo(int argc, char const *argv[])
 
     free(lastLine);
     fclose(open);
+    return 0;
+}
+
+int commit(int argc, char const *argv[])
+{
+    FILE *foundL = fopen("/mnt/c/FOP_Project/.neogit/config", "r");
+    FILE *foundG = fopen("/home/parsa/globalconfig", "r");
+    if (foundL == NULL && foundG == NULL)
+    {
+        printf("Please enter you're username and email first\n");
+        return 1;
+    }
+    if (foundL == NULL && foundG != NULL)
+        fclose(foundG);
+    if (foundL != NULL && foundG == NULL)
+        fclose(foundL);
+    DIR *dir = opendir("/mnt/c/FOP_Project/.neogit");
+    if (dir == NULL)
+    {
+        printf("You have to initialize a repository first!\n");
+        return 1;
+    }
+    closedir(dir);
+
+    chdir("/mnt/c/FOP_Project/.neogit");
+    DIR *open = opendir("commits");
+    if (open == NULL)
+    {
+        if (mkdir("commits", 0755) != 0)
+        {
+            printf("Error making commits directory!\n");
+            return 1;
+        }
+    }
+    closedir(open);
+
+    if (argc == 3)
+    {
+        printf("You have to define a message!\n");
+        return 1;
+    }
+    if (strlen(argv[3]) > 72)
+    {
+        printf("Commit message is too long!\n");
+        return 1;
+    }
+    chdir("/mnt/c/FOP_Project/.neogit");
+
+    struct dirent *entry;
+    DIR *open2 = opendir("/mnt/c/FOP_Project/.neogit/staging");
+    mkdir("/mnt/c/FOP_Project/.neogit/commits/commit1", 0755);
+    chdir("/mnt/c/FOP_Project/.neogit/commits/commit1");
+    FILE *create = fopen("commit1Log", "a");
+    if (create == NULL)
+    {
+        printf("Couldn't create file!\n");
+        return 1;
+    }
+    while ((entry = readdir(open2)) != NULL)
+    {
+        if ((strcmp(entry->d_name, ".") == 0) || (strcmp(entry->d_name, "..") == 0))
+        {
+            continue;
+        }
+        if (entry->d_type == 8) // file
+        {
+            chdir("/mnt/c/FOP_Project/.neogit/staging");
+            FILE *source = fopen(entry->d_name, "r");
+            if (source == NULL)
+            {
+                printf("ERROR!\n");
+                return 1;
+            }
+            chdir("/mnt/c/FOP_Project/.neogit/commits/commit1");
+            char mmd;
+            FILE *dest = fopen(entry->d_name, "w");
+            if (dest == NULL)
+            {
+                printf("RIDI!\n");
+                return 1;
+            }
+            while ((mmd = fgetc(source)) != EOF)
+            {
+                fputc(mmd, dest);
+            }
+            fclose(source);
+            fclose(dest);
+        }
+    }
+
+    FILE *commit = fopen("commit1Log", "a");
+    if (commit == NULL)
+    {
+        printf("wrong!\n");
+        return 1;
+    }
+    time_t t;
+    struct tm *current_time;
+
+    // Get current time
+    t = time(NULL);
+    current_time = localtime(&t);
+
+    // Print date and time components
+    chdir("/mnt/c/FOP_Project/.neogit");
+    FILE *config = fopen("config", "r");
+    char name[100];
+    char email[100];
+    fscanf(config, "local username is : %s\n", name);
+    fscanf(config, "local email is : %s", email);
+    fprintf(commit, "%s\n", "Commit 1");
+    fprintf(commit, "commited by : %s %s\n", name, email);
+    fprintf(commit, "date : %02d-%02d-%d %02d:%02d:%02d\n",
+            current_time->tm_mday, current_time->tm_mon + 1, current_time->tm_year + 1900,
+            current_time->tm_hour, current_time->tm_min, current_time->tm_sec);
+    fprintf(commit, "commit message : %s\n", argv[3]);
+
+    printf("Added files were successfully commited!\n");
+
+    fclose(commit);
+    fclose(config);
     return 0;
 }
 
@@ -811,6 +933,10 @@ int main(int argc, char const *argv[])
                 }
             }
         }
+    }
+    else if (strcmp(argv[1], "commit") == 0)
+    {
+        commit(argc, argv);
     }
     else
     {
